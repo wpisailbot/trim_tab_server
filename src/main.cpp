@@ -10,7 +10,7 @@
 #include "pb_decode.h"
 #include "messages.pb.c"
 
-//for interrupt from Jetson
+// for interrupt from Jetson
 portMUX_TYPE interruptMutex = portMUX_INITIALIZER_UNLOCKED;
 const int interruptPin = 35;
 volatile bool interrupt = false;
@@ -18,65 +18,72 @@ volatile int i;
 
 StaticJsonDocument<200> latestData;
 
-const char* ssid = "sailbot_trimtab_ap";
-const char* password = "sailbot123";
+const char *ssid = "sailbot_trimtab_ap";
+const char *password = "sailbot123";
 
 WebSocketsServer webSocket = WebSocketsServer(81);
 
-void IRAM_ATTR requestData() {
+void IRAM_ATTR requestData()
+{
   interrupt = true;
-  i+=1;
+  i += 1;
 }
 
-void parseJson(char* jsonString) {
+void parseJson(char *jsonString)
+{
   DeserializationError error = deserializeJson(latestData, jsonString);
-  if (error) {
-    Serial.print(F("deserializeJson() failed: "));
-    Serial.println(error.f_str());
+  if (error)
+  {
+    // Serial.print(F("deserializeJson() failed: "));
+    // Serial.println(error.f_str());
     return;
   }
-  Serial.println("Got json");
+  // Serial.println("Got json");
 }
 
-void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
+void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
+{
   // Handle WebSocket events (e.g., new connections, messages)
-  switch(type) {
-    case WStype_DISCONNECTED:
-      Serial.printf("[%u] Disconnected!\n", num);
-      break;
-    case WStype_CONNECTED:
-      {
-        IPAddress ip = webSocket.remoteIP(num);
-        Serial.printf("[%u] Connection from %d.%d.%d.%d\n", num, ip[0], ip[1], ip[2], ip[3]);
-      }
-      break;
-    case WStype_TEXT:
-      Serial.printf("[%u] Text: %s\n", num, payload);
-      parseJson((char*)payload);
-      break;
-    case WStype_BIN:
-      Serial.println("Got bin. data");
-      // DataMessage message = DataMessage_init_zero;
-      // pb_istream_t stream = pb_istream_from_buffer(payload, length);
-      // bool status = pb_decode(&stream, ControlMessage_fields, &message);
-      // if (!status)
-      // {
-      //   Serial.printf("Decoding failed: %s\n", PB_GET_ERROR(&stream));
-      //   return;
-      // }
-      // Serial.println("Received data");
-      // latestData["battery_level"] = message.batteryLevel;
-      // latestData["wind_angle"] = message.windAngle;
-      break;
+  switch (type)
+  {
+  case WStype_DISCONNECTED:
+    // Serial.printf("[%u] Disconnected!\n", num);
+    break;
+  case WStype_CONNECTED:
+  {
+    IPAddress ip = webSocket.remoteIP(num);
+    //Serial.printf("[%u] Connection from %d.%d.%d.%d\n", num, ip[0], ip[1], ip[2], ip[3]);
+  }
+  break;
+  case WStype_TEXT:
+    // Serial.printf("[%u] Text: %s\n", num, payload);
+    parseJson((char *)payload);
+    break;
+  case WStype_BIN:
+    //Serial.println("Got bin. data");
+    // DataMessage message = DataMessage_init_zero;
+    // pb_istream_t stream = pb_istream_from_buffer(payload, length);
+    // bool status = pb_decode(&stream, ControlMessage_fields, &message);
+    // if (!status)
+    // {
+    //   Serial.printf("Decoding failed: %s\n", PB_GET_ERROR(&stream));
+    //   return;
+    // }
+    // Serial.println("Received data");
+    // latestData["battery_level"] = message.batteryLevel;
+    // latestData["wind_angle"] = message.windAngle;
+    break;
   }
 }
 
-void setup() {
-  i=0;
+void setup()
+{
+  i = 0;
   pinMode(interruptPin, INPUT_PULLDOWN);
-  attachInterrupt(digitalPinToInterrupt(interruptPin), requestData, RISING);
+  // attachInterrupt(digitalPinToInterrupt(interruptPin), requestData, RISING);
   Serial.begin(115200);
   Serial2.begin(115200);
+  // Serial2.begin(115200);
   sleep(0.5);
 
   // Start the WiFi access point
@@ -84,7 +91,8 @@ void setup() {
   Serial.println("WiFi Access Point started");
 
   // Start mDNS with the hostname 'esp32-websocket'
-  if (!MDNS.begin("sailbot-trimtab-local")) {
+  if (!MDNS.begin("sailbot-trimtab-local"))
+  {
     Serial.println("Error starting mDNS");
     return;
   }
@@ -99,19 +107,44 @@ void setup() {
   Serial.println("WebSocket server started");
 }
 
-void loop() {
-  webSocket.loop();
-  String data = "testing";
-  bool write = false;
-  portENTER_CRITICAL(&interruptMutex);
-  if(interrupt){
-    write = true;
-    interrupt = false;
+void broadcastToAllClients(String message)
+{
+  for (uint8_t i = 0; i < webSocket.connectedClients(); i++)
+  {
+    if (webSocket.remoteIP(i) != IPAddress(0, 0, 0, 0))
+    {
+      webSocket.sendTXT(i, message);
+    }
   }
-  portEXIT_CRITICAL(&interruptMutex);
-  if(write){
-    Serial.println("sending data");
-    serializeJson(latestData, Serial2);
-    Serial.println(); //necessary to mark end of message
+}
+
+void loop()
+{
+  webSocket.loop();
+
+  if (Serial2.available())
+  {
+    //Serial.println("Got data");
+    String jsonData = Serial2.readStringUntil('\n');
+
+    if (jsonData.length() > 0)
+    {
+      DynamicJsonDocument doc(1024);
+      DeserializationError error = deserializeJson(doc, jsonData);
+      if (error)
+      {
+      }
+      else if (doc.containsKey("requestData"))
+      {
+        String jsonString;
+        serializeJson(latestData, jsonString);
+        Serial.println(jsonString);
+      }
+      else
+      {
+        broadcastToAllClients(jsonData);
+        Serial.println("Sending command to remote");
+      }
+    }
   }
 }
