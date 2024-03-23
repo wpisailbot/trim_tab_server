@@ -78,33 +78,30 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
 
 void setup()
 {
-  i = 0;
-  pinMode(interruptPin, INPUT_PULLDOWN);
-  // attachInterrupt(digitalPinToInterrupt(interruptPin), requestData, RISING);
   Serial.begin(115200);
-  Serial2.begin(115200);
-  // Serial2.begin(115200);
-  sleep(0.5);
+  Serial1.begin(115200, SERIAL_8N1, 18, 19);
+  delay(0.5);
 
   // Start the WiFi access point
   WiFi.softAP(ssid, password);
-  Serial.println("WiFi Access Point started");
+  //Serial.println("WiFi Access Point started");
 
   // Start mDNS with the hostname 'esp32-websocket'
   if (!MDNS.begin("sailbot-trimtab-local"))
   {
-    Serial.println("Error starting mDNS");
+    //Serial.println("Error starting mDNS");
     return;
   }
 
   // Advertise the WebSocket server over mDNS
   MDNS.addService("sailbot-trimtab", "tcp", 81);
-  Serial.println("mDNS service started");
+  //Serial.println("mDNS service started");
 
   // Start WebSocket server and assign callback
   webSocket.begin();
   webSocket.onEvent(webSocketEvent);
   Serial.println("WebSocket server started");
+  
 }
 
 void broadcastToAllClients(String message)
@@ -122,10 +119,10 @@ void loop()
 {
   webSocket.loop();
 
-  if (Serial2.available())
+  if (Serial1.available())
   {
-    //Serial.println("Got data");
-    String jsonData = Serial2.readStringUntil('\n');
+    Serial.println("Got data");
+    String jsonData = Serial1.readStringUntil('\n');
 
     if (jsonData.length() > 0)
     {
@@ -138,12 +135,12 @@ void loop()
       {
         String jsonString;
         serializeJson(latestData, jsonString);
-        Serial.println(jsonString);
+        //Serial.println(jsonString);
       }
       else
       {
         broadcastToAllClients(jsonData);
-        Serial.println("Sending command to remote");
+        //Serial.println("Sending command to remote");
       }
     }
   }
