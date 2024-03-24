@@ -3,6 +3,7 @@
 #include <WebSocketsServer.h>
 #include <ESPmDNS.h>
 #include <ArduinoJson.h>
+#include <ESP32Servo.h>
 #include "HardwareSerial.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -22,6 +23,12 @@ const char *ssid = "sailbot_trimtab_ap";
 const char *password = "sailbot123";
 
 WebSocketsServer webSocket = WebSocketsServer(81);
+
+Servo rudderServo;
+Servo talonPWM;
+
+const uint8_t ballastPotPin = 33;
+const uint8_t talonPWMPin = 26;
 
 void IRAM_ATTR requestData()
 {
@@ -82,6 +89,10 @@ void setup()
   Serial1.begin(115200, SERIAL_8N1, 18, 19);
   delay(0.5);
 
+  pinMode(ballastPotPin, INPUT);
+  talonPWM.attach(talonPWMPin);
+  rudderServo.attach(27);
+
   // Start the WiFi access point
   WiFi.softAP(ssid, password);
   //Serial.println("WiFi Access Point started");
@@ -121,7 +132,7 @@ void loop()
 
   if (Serial1.available())
   {
-    Serial.println("Got data");
+    //Serial.println("Got data");
     String jsonData = Serial1.readStringUntil('\n');
 
     if (jsonData.length() > 0)
@@ -136,6 +147,25 @@ void loop()
         String jsonString;
         serializeJson(latestData, jsonString);
         //Serial.println(jsonString);
+      }
+      else if (doc.containsKey("get_ballast_pos")){
+        //Serial.println("Sending ballast pos");
+        StaticJsonDocument<200> doc;
+        doc["ballast_pos"] = analogRead(ballastPotPin);
+        String jsonString;
+        serializeJson(doc, jsonString);
+        Serial1.println(jsonString);
+      }
+      else if (doc.containsKey("rudder_angle"))
+      {
+        Serial.println("moving rudders");
+        rudderServo.write(doc["rudder_angle"].as<int16_t>());
+      }
+      else if (doc.containsKey("ballast_pwm")){
+        Serial.print("Moving ballast: ");
+        int16_t val = doc["ballast_pwm"].as<int16_t>();
+        Serial.println(val);
+        talonPWM.write(val);
       }
       else
       {
