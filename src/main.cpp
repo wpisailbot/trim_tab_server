@@ -10,6 +10,8 @@
 #include "freertos/semphr.h"
 #include "pb_decode.h"
 #include "messages.pb.c"
+#include "esp_heap_caps.h"
+#include "esp_log.h"
 
 // for interrupt from Jetson
 portMUX_TYPE interruptMutex = portMUX_INITIALIZER_UNLOCKED;
@@ -18,6 +20,9 @@ volatile bool interrupt = false;
 volatile int i;
 
 StaticJsonDocument<200> latestData;
+StaticJsonDocument<200> ballastdoc;
+StaticJsonDocument<1024> commandDoc;
+
 
 const char *ssid = "sailbot_trimtab_ap";
 const char *password = "sailbot123";
@@ -30,10 +35,24 @@ Servo talonPWM;
 const uint8_t ballastPotPin = 33;
 const uint8_t talonPWMPin = 26;
 
+unsigned long lastBallastCommandTime = millis();
+
 void IRAM_ATTR requestData()
 {
   interrupt = true;
   i += 1;
+}
+
+void print_memory_usage() {
+    // Get the total free memory
+    size_t free_mem = heap_caps_get_free_size(MALLOC_CAP_8BIT);
+    
+    // Get the minimum free memory observed since system boot
+    size_t min_free_mem = heap_caps_get_minimum_free_size(MALLOC_CAP_8BIT);
+    
+    // Print the memory usage
+    Serial.print("Total free memory: ");
+    Serial.println(free_mem);
 }
 
 void parseJson(char *jsonString)
@@ -137,34 +156,33 @@ void loop()
 
     if (jsonData.length() > 0)
     {
-      DynamicJsonDocument doc(1024);
-      DeserializationError error = deserializeJson(doc, jsonData);
+      DeserializationError error = deserializeJson(commandDoc, jsonData);
       if (error)
       {
       }
-      else if (doc.containsKey("requestData"))
+      else if (commandDoc.containsKey("requestData"))
       {
         String jsonString;
         serializeJson(latestData, jsonString);
         //Serial.println(jsonString);
       }
-      else if (doc.containsKey("get_ballast_pos")){
+      else if (commandDoc.containsKey("get_ballast_pos")){
         //Serial.println("Sending ballast pos");
-        StaticJsonDocument<200> doc;
-        doc["ballast_pos"] = analogRead(ballastPotPin);
+        ballastdoc["ballast_pos"] = analogRead(ballastPotPin);
         String jsonString;
-        serializeJson(doc, jsonString);
+        serializeJson(ballastdoc, jsonString);
         Serial1.println(jsonString);
       }
-      else if (doc.containsKey("rudder_angle"))
+      else if (commandDoc.containsKey("rudder_angle"))
       {
         Serial.println("moving rudders");
-        rudderServo.write(doc["rudder_angle"].as<int16_t>());
+        rudderServo.write(commandDoc["rudder_angle"].as<int16_t>());
       }
-      else if (doc.containsKey("ballast_pwm")){
-        Serial.print("Moving ballast: ");
-        int16_t val = doc["ballast_pwm"].as<int16_t>();
-        Serial.println(val);
+      else if (commandDoc.containsKey("ballast_pwm")){
+        lastBallastCommandTime = millis();
+        //Serial.print("Moving ballast: ");
+        int16_t val = commandDoc["ballast_pwm"].as<int16_t>();
+        //Serial.println(val);
         talonPWM.write(val);
       }
       else
@@ -173,5 +191,13 @@ void loop()
         //Serial.println("Sending command to remote");
       }
     }
+    print_memory_usage();
+  }
+
+  // Stop ballast if we haven't gotten a command in a while
+  // This stops the ballast from falling off the boat if the Jetson crashes
+  unsigned long currentTime = millis();
+  if (currentTime-lastBallastCommandTime > 500){
+    talonPWM.write(95);
   }
 }
