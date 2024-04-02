@@ -78,7 +78,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
   case WStype_CONNECTED:
   {
     IPAddress ip = webSocket.remoteIP(num);
-    //Serial.printf("[%u] Connection from %d.%d.%d.%d\n", num, ip[0], ip[1], ip[2], ip[3]);
+    Serial.printf("[%u] Connection from %d.%d.%d.%d\n", num, ip[0], ip[1], ip[2], ip[3]);
   }
   break;
   case WStype_TEXT:
@@ -114,7 +114,7 @@ void setup()
 
   // Start the WiFi access point
   WiFi.softAP(ssid, password);
-  //Serial.println("WiFi Access Point started");
+  Serial.println("WiFi Access Point started");
 
   // Start mDNS with the hostname 'esp32-websocket'
   if (!MDNS.begin("sailbot-trimtab-local"))
@@ -124,8 +124,8 @@ void setup()
   }
 
   // Advertise the WebSocket server over mDNS
-  MDNS.addService("sailbot-trimtab", "tcp", 81);
-  //Serial.println("mDNS service started");
+  MDNS.addService("_sailbot-trimtab", "_tcp", 81);
+  Serial.println("mDNS service started");
 
   // Start WebSocket server and assign callback
   webSocket.begin();
@@ -191,7 +191,7 @@ void loop()
         //Serial.println("Sending command to remote");
       }
     }
-    print_memory_usage();
+    //print_memory_usage();
   }
 
   // Stop ballast if we haven't gotten a command in a while
