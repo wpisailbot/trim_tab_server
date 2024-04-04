@@ -8,8 +8,6 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
-#include "pb_decode.h"
-#include "messages.pb.c"
 #include "esp_heap_caps.h"
 #include "esp_log.h"
 
@@ -131,7 +129,6 @@ void setup()
   webSocket.begin();
   webSocket.onEvent(webSocketEvent);
   Serial.println("WebSocket server started");
-  
 }
 
 void broadcastToAllClients(String message)
@@ -176,7 +173,7 @@ void loop()
       else if (commandDoc.containsKey("rudder_angle"))
       {
         Serial.println("moving rudders");
-        rudderServo.write(commandDoc["rudder_angle"].as<int16_t>());
+        rudderServo.write(commandDoc["rudder_angle"].as<int16_t>()+90);
       }
       else if (commandDoc.containsKey("ballast_pwm")){
         lastBallastCommandTime = millis();
