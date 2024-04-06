@@ -164,8 +164,10 @@ void loop()
         //Serial.println(jsonString);
       }
       else if (commandDoc.containsKey("get_ballast_pos")){
-        //Serial.println("Sending ballast pos");
-        ballastdoc["ballast_pos"] = analogRead(ballastPotPin);
+        auto ballastPos = analogRead(ballastPotPin);
+        //Serial.print("Sending ballast pos: ");
+        //Serial.println(ballastPos);
+        ballastdoc["ballast_pos"] = ballastPos;
         String jsonString;
         serializeJson(ballastdoc, jsonString);
         Serial1.println(jsonString);
