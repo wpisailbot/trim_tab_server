@@ -11,11 +11,12 @@
 #include "esp_heap_caps.h"
 #include "esp_log.h"
 
+#define NUM_BALLAST_READINGS 100
+
 // for interrupt from Jetson
 portMUX_TYPE interruptMutex = portMUX_INITIALIZER_UNLOCKED;
 const int interruptPin = 35;
 volatile bool interrupt = false;
-volatile int i;
 
 StaticJsonDocument<200> latestData;
 StaticJsonDocument<200> ballastdoc;
@@ -34,12 +35,6 @@ const uint8_t ballastPotPin = 33;
 const uint8_t talonPWMPin = 26;
 
 unsigned long lastBallastCommandTime = millis();
-
-void IRAM_ATTR requestData()
-{
-  interrupt = true;
-  i += 1;
-}
 
 void print_memory_usage() {
     // Get the total free memory
@@ -141,10 +136,15 @@ void broadcastToAllClients(String message)
     }
   }
 }
-
+uint16_t ballastPositions[NUM_BALLAST_READINGS];
+uint ballastPosIndex=0;
 void loop()
 {
   webSocket.loop();
+  auto ballastPos = analogRead(ballastPotPin);
+  ballastPositions[ballastPosIndex]=ballastPos;
+  ballastPosIndex++;
+  ballastPosIndex%=NUM_BALLAST_READINGS;
 
   if (Serial1.available())
   {
@@ -164,7 +164,11 @@ void loop()
         //Serial.println(jsonString);
       }
       else if (commandDoc.containsKey("get_ballast_pos")){
-        auto ballastPos = analogRead(ballastPotPin);
+        uint ballastPos = 0;
+        for(int i=0; i<NUM_BALLAST_READINGS; i++){
+          ballastPos += ballastPositions[i];
+        }
+        ballastPos /= NUM_BALLAST_READINGS;
         //Serial.print("Sending ballast pos: ");
         //Serial.println(ballastPos);
         ballastdoc["ballast_pos"] = ballastPos;
@@ -187,7 +191,8 @@ void loop()
       else
       {
         broadcastToAllClients(jsonData);
-        //Serial.println("Sending command to remote");
+        Serial.print("Sending command to remote:");
+        Serial.println(jsonData);
       }
     }
     //print_memory_usage();
