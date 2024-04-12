@@ -178,7 +178,8 @@ void loop()
       }
       else if (commandDoc.containsKey("rudder_angle"))
       {
-        Serial.println("moving rudders");
+        Serial.print("moving rudders: ");
+        Serial.println(commandDoc["rudder_angle"].as<int16_t>()+90);
         rudderServo.write(commandDoc["rudder_angle"].as<int16_t>()+90);
       }
       else if (commandDoc.containsKey("ballast_pwm")){
