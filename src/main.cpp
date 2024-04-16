@@ -26,7 +26,7 @@ StaticJsonDocument<1024> commandDoc;
 const char *ssid = "sailbot_trimtab_ap";
 const char *password = "sailbot123";
 
-WebSocketsServer webSocket = WebSocketsServer(81);
+WebSocketsServer webSocket = WebSocketsServer(80);
 
 Servo rudderServo;
 Servo talonPWM;
@@ -79,18 +79,6 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
     parseJson((char *)payload);
     break;
   case WStype_BIN:
-    //Serial.println("Got bin. data");
-    // DataMessage message = DataMessage_init_zero;
-    // pb_istream_t stream = pb_istream_from_buffer(payload, length);
-    // bool status = pb_decode(&stream, ControlMessage_fields, &message);
-    // if (!status)
-    // {
-    //   Serial.printf("Decoding failed: %s\n", PB_GET_ERROR(&stream));
-    //   return;
-    // }
-    // Serial.println("Received data");
-    // latestData["battery_level"] = message.batteryLevel;
-    // latestData["wind_angle"] = message.windAngle;
     break;
   }
 }
