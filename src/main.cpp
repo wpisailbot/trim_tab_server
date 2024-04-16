@@ -26,7 +26,7 @@ StaticJsonDocument<1024> commandDoc;
 const char *ssid = "sailbot_trimtab_ap";
 const char *password = "sailbot123";
 
-WebSocketsServer webSocket = WebSocketsServer(80);
+WebSocketsServer webSocket = WebSocketsServer(81);
 
 Servo rudderServo;
 Servo talonPWM;
