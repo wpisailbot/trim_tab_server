@@ -12,10 +12,9 @@
 #include "esp_log.h"
 #include <esp_task_wdt.h>
 
-
 #define NUM_BALLAST_READINGS 100
 
-// for interrupt from Jetson
+// for interrupt from Jetson Orin 
 portMUX_TYPE interruptMutex = portMUX_INITIALIZER_UNLOCKED;
 const int interruptPin = 35;
 volatile bool interrupt = false;
