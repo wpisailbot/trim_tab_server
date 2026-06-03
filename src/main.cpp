@@ -10,6 +10,8 @@
 #include "freertos/semphr.h"
 #include "esp_heap_caps.h"
 #include "esp_log.h"
+#include <esp_task_wdt.h>
+
 
 #define NUM_BALLAST_READINGS 100
 
@@ -111,7 +113,11 @@ void setup()
   // Start WebSocket server and assign callback
   webSocket.begin();
   webSocket.onEvent(webSocketEvent);
-  Serial.println("WebSocket server started");
+  Serial.println("WebSocket server started");  
+
+
+  esp_task_wdt_init(5, true); 
+  esp_task_wdt_add(NULL);
 }
 
 void broadcastToAllClients(String message)
@@ -193,4 +199,5 @@ void loop()
   if (currentTime-lastBallastCommandTime > 500){
     talonPWM.write(95);
   }
+  esp_task_wdt_reset();   
 }
