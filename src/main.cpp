@@ -11,6 +11,10 @@
 #include "esp_heap_caps.h"
 #include "esp_log.h"
 #include <esp_task_wdt.h>
+<<<<<<< HEAD
+=======
+
+>>>>>>> 84e947f63296f49eeb1603ad9a5c6cb526365c17
 
 #define NUM_BALLAST_READINGS 100
 
@@ -199,4 +203,8 @@ void loop()
     talonPWM.write(95);
   }
   esp_task_wdt_reset();   
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 84e947f63296f49eeb1603ad9a5c6cb526365c17
