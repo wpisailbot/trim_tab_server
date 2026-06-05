@@ -13,15 +13,12 @@
 #include <esp_task_wdt.h>
 
 
-#define NUM_BALLAST_READINGS 100
-
 // for interrupt from Jetson
 portMUX_TYPE interruptMutex = portMUX_INITIALIZER_UNLOCKED;
 const int interruptPin = 35;
 volatile bool interrupt = false;
 
 StaticJsonDocument<200> latestData;
-StaticJsonDocument<200> ballastdoc;
 StaticJsonDocument<1024> commandDoc;
 
 
@@ -31,12 +28,7 @@ const char *password = "sailbot123";
 WebSocketsServer webSocket = WebSocketsServer(81);
 
 Servo rudderServo;
-Servo talonPWM;
 
-const uint8_t ballastPotPin = 33;
-const uint8_t talonPWMPin = 26;
-
-unsigned long lastBallastCommandTime = millis();
 
 void print_memory_usage() {
     // Get the total free memory
@@ -68,7 +60,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
   switch (type)
   {
   case WStype_DISCONNECTED:
-    // Serial.printf("[%u] Disconnected!\n", num);
+    Serial.printf("[%u] Disconnected!\n", num);
     break;
   case WStype_CONNECTED:
   {
@@ -91,8 +83,6 @@ void setup()
   Serial1.begin(115200, SERIAL_8N1, 18, 19);
   delay(0.5);
 
-  pinMode(ballastPotPin, INPUT);
-  talonPWM.attach(talonPWMPin);
   rudderServo.attach(27);
 
   // Start the WiFi access point
@@ -130,15 +120,9 @@ void broadcastToAllClients(String message)
     }
   }
 }
-uint16_t ballastPositions[NUM_BALLAST_READINGS];
-uint ballastPosIndex=0;
 void loop()
 {
   webSocket.loop();
-  auto ballastPos = analogRead(ballastPotPin);
-  ballastPositions[ballastPosIndex]=ballastPos;
-  ballastPosIndex++;
-  ballastPosIndex%=NUM_BALLAST_READINGS;
 
   if (Serial1.available())
   {
@@ -157,31 +141,11 @@ void loop()
         serializeJson(latestData, jsonString);
         //Serial.println(jsonString);
       }
-      else if (commandDoc.containsKey("get_ballast_pos")){
-        uint ballastPos = 0;
-        for(int i=0; i<NUM_BALLAST_READINGS; i++){
-          ballastPos += ballastPositions[i];
-        }
-        ballastPos /= NUM_BALLAST_READINGS;
-        //Serial.print("Sending ballast pos: ");
-        //Serial.println(ballastPos);
-        ballastdoc["ballast_pos"] = ballastPos;
-        String jsonString;
-        serializeJson(ballastdoc, jsonString);
-        Serial1.println(jsonString);
-      }
       else if (commandDoc.containsKey("rudder_angle"))
       {
         Serial.print("moving rudders: ");
         Serial.println(commandDoc["rudder_angle"].as<int16_t>()+90);
         rudderServo.write(commandDoc["rudder_angle"].as<int16_t>()+90);
-      }
-      else if (commandDoc.containsKey("ballast_pwm")){
-        lastBallastCommandTime = millis();
-        //Serial.print("Moving ballast: ");
-        int16_t val = commandDoc["ballast_pwm"].as<int16_t>();
-        //Serial.println(val);
-        talonPWM.write(val);
       }
       else
       {
@@ -191,13 +155,6 @@ void loop()
       }
     }
     //print_memory_usage();
-  }
-
-  // Stop ballast if we haven't gotten a command in a while
-  // This stops the ballast from falling off the boat if the Jetson crashes
-  unsigned long currentTime = millis();
-  if (currentTime-lastBallastCommandTime > 500){
-    talonPWM.write(95);
   }
   esp_task_wdt_reset();   
 }
