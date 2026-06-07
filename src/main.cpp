@@ -17,8 +17,11 @@
 portMUX_TYPE interruptMutex = portMUX_INITIALIZER_UNLOCKED;
 const int interruptPin = 35;
 volatile bool interrupt = false;
+float last_heartbeat = 0;
+bool heartbeat = true;
 
 StaticJsonDocument<200> latestData;
+StaticJsonDocument<200> heartdoc;
 StaticJsonDocument<1024> commandDoc;
 
 
@@ -147,6 +150,19 @@ void loop()
         Serial.println(commandDoc["rudder_angle"].as<int16_t>()+90);
         rudderServo.write(commandDoc["rudder_angle"].as<int16_t>()+90);
       }
+      else if (commandDoc.containsKey("get_heartbeat"))
+      {
+        if (heartbeat) {
+          heartdoc["hearbeat"] = true;
+          heartbeat = false;
+        } else {
+          heartdoc["heartbeat"] = false;
+          heartbeat = true;
+        }
+        String jsonString;
+        serializeJson(heartdoc, jsonString);
+        Serial1.println(jsonString);
+      }
       else
       {
         broadcastToAllClients(jsonData);
@@ -154,7 +170,6 @@ void loop()
         Serial.println(jsonData);
       }
     }
-    //print_memory_usage();
   }
   esp_task_wdt_reset();   
 }
