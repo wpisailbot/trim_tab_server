@@ -153,7 +153,7 @@ void loop()
       else if (commandDoc.containsKey("get_heartbeat"))
       {
         if (heartbeat) {
-          heartdoc["hearbeat"] = true;
+          heartdoc["heartbeat"] = true;
           heartbeat = false;
         } else {
           heartdoc["heartbeat"] = false;
